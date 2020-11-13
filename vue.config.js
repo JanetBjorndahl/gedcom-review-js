@@ -1,4 +1,5 @@
 module.exports = {
+  publicPath: process.env.NODE_ENV === "production" ? "/gedcom-review/" : "/",
   transpileDependencies: ["vuetify"],
   configureWebpack: {
     plugins: []
@@ -7,7 +8,6 @@ module.exports = {
     proxy: {
       "/(w|wiki)/": {
         target: "https://www.werelate.org",
-        logLevel: "debug",
         changeOrigin: true,
         onProxyReq: function(proxyReq) {
           proxyReq.setHeader(
