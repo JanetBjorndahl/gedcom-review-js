@@ -1,6 +1,6 @@
 import axios from "axios";
 import axiosRetry from "axios-retry";
-import { parseXML } from "@/utils/XMLUtils.js";
+import { parseXML } from "@/utils/XMLUtils";
 
 const axiosClient = axios.create({
   baseURL: process.env.VUE_APP_API_BASE_URL,

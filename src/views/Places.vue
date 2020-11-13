@@ -9,7 +9,11 @@
       :item-class="itemClass"
       :search="search"
       @click:row="onClick"
-    ></v-data-table>
+    >
+      <template v-slot:item.unmatch="{ item }">
+        <v-icon medium dense v-if="item.matchedPage" @click.stop="unmatch(item)">mdi-link-variant-off</v-icon>
+      </template>
+    </v-data-table>
   </v-container>
 </template>
 
@@ -35,6 +39,10 @@ export default {
         {
           text: "Matched Page",
           value: "matchedPage"
+        },
+        {
+          text: "Unmatch",
+          value: "unmatch"
         }
       ]
     };
@@ -59,14 +67,26 @@ export default {
     itemClass(item) {
       return item.cls;
     },
+    unmatch(item) {
+      try {
+        let place = this.gedcom.model.places.find(it => it["@id"] === item.id);
+        this.$store.dispatch("gedcomUnmatch", { data: place });
+      } catch (err) {
+        this.$store.dispatch("notificationsAdd", err);
+      }
+    },
     onClick(item) {
-      let place = this.gedcom.model.places.find(it => it["@id"] === item.id);
-      this.$store.dispatch("prefsMarkRead", {
-        model: this.gedcom.model,
-        data: place,
-        component: PLACES
-      });
-      fetchItem(this.gedcom.model, place, PLACES);
+      try {
+        let place = this.gedcom.model.places.find(it => it["@id"] === item.id);
+        this.$store.dispatch("prefsMarkRead", {
+          model: this.gedcom.model,
+          data: place,
+          component: PLACES
+        });
+        fetchItem(this.gedcom.model, place, PLACES);
+      } catch (err) {
+        this.$store.dispatch("notificationsAdd", err);
+      }
     }
   }
 };

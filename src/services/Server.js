@@ -1,5 +1,5 @@
 import { request } from "./ServerHelper";
-import { parseXML, toXMLString } from "@/utils/XMLUtils.js";
+import { parseXML, toXMLString } from "@/utils/XMLUtils";
 
 export const WR_SERVER = "www.werelate.org";
 
@@ -75,22 +75,19 @@ export function updatePrimaryPage(gedcomId, primaryId) {
 }
 
 export function sendPageData(data) {
-  return sendAjaxService("wfSetGedcomPage", toXMLString(data), "POST");
+  let xml = toXMLString(data);
+  return sendAjaxService("wfSetGedcomPage", xml, "POST");
 }
 
 export function readGedcomPageData(gedcomId, key) {
   return sendAjaxService("wfReadGedcomPageData", { gedcom_id: gedcomId, key: key });
 }
 
-export function matchFamily(data) {
-  return sendAjaxService("wfMatchFamily", toXMLString(data), "POST");
-}
-
 export function updateGedcomFlag(gedcomId, attr, value, keys) {
   let key;
   let method;
   if (Array.isArray(keys)) {
-    key = keys.join("\n");
+    key = keys.join("/");
     method = "POST";
   } else {
     key = keys.toString();
@@ -99,10 +96,14 @@ export function updateGedcomFlag(gedcomId, attr, value, keys) {
   return sendAjaxService("wfUpdateGedcomFlag", { gedcom_id: gedcomId, attr: attr, value: value, key: key }, method);
 }
 
-export function saveMatches(gedcomId, prefixedTitles, merged, keys) {
+export function saveMatchedFamily(data) {
+  return sendAjaxService("wfMatchFamily", toXMLString(data), "POST");
+}
+
+export function saveMatchesToServer(gedcomId, prefixedTitles, merged, keys) {
   return sendAjaxService(
     "wfUpdateGedcomMatches",
-    { gedcom_id: gedcomId, match: prefixedTitles.join("\n"), key: keys.join("\n"), merged: merged.join("\n") },
+    { gedcom_id: gedcomId, match: prefixedTitles.join("/"), key: keys.join("/"), merged: merged.join("/") },
     "POST"
   );
 }
@@ -111,7 +112,7 @@ export function saveMatches(gedcomId, prefixedTitles, merged, keys) {
 export function savePotentialMatches(gedcomId, potentialMatches, keys) {
   return sendAjaxService(
     "wfUpdateGedcomPotentialMatches",
-    { gedcom_id: gedcomId, matches: potentialMatches.join("\n"), key: keys.join("\n") },
+    { gedcom_id: gedcomId, matches: potentialMatches.join("/"), key: keys.join("/") },
     "POST"
   );
 }

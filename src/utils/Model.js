@@ -1,4 +1,4 @@
-import { NS_PERSON } from "@/utils/ModelUtils.js";
+import { NS_PERSON } from "@/utils/ModelUtils";
 
 export default class Model {
   constructor() {
@@ -90,7 +90,7 @@ export default class Model {
   remove(a, data) {
     let pos = this.getItemIndex(a, data);
     if (pos >= 0) {
-      data.splice(pos, 1);
+      a.splice(pos, 1);
     }
   }
 

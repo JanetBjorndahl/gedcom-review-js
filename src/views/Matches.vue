@@ -9,7 +9,11 @@
       :item-class="itemClass"
       :search="search"
       @click:row="onClick"
-    ></v-data-table>
+    >
+      <template v-slot:item.unmatch="{ item }">
+        <v-icon medium dense v-if="item.matched" @click.stop="unmatch(item)">mdi-link-variant-off</v-icon>
+      </template>
+    </v-data-table>
   </v-container>
 </template>
 
@@ -28,10 +32,6 @@ export default {
     return {
       search: "",
       headers: [
-        {
-          text: "Exclude",
-          value: "exclude"
-        },
         {
           text: "Husband",
           value: "husband"
@@ -55,6 +55,10 @@ export default {
         {
           text: "Updated",
           value: "updated"
+        },
+        {
+          text: "Unmatch",
+          value: "unmatch"
         }
       ]
     };
@@ -66,14 +70,14 @@ export default {
       }
       return this.gedcom.model.matches.map(it => {
         return {
-          exclude: it["@exclude"],
           husband: it["husband"] ? getFullName(it["husband"][0]) : "",
           wife: it["wife"] ? getFullName(it["wife"][0]) : "",
           marriage: it["@living"] === "true" ? "living" : (getEventFact(it, "Marriage") || {})["@date"],
           distance: it["@distance"] === NOT_CONNECTED ? "not connected to root" : Math.ceil(it["@distance"] / 2),
+          matched: it["@match"] && it["@nomatch"] !== "true",
           matchedPage: it["@nomatch"] === "true" ? "(not a match)" : it["@match"],
           updated: it["@match"] && it["@merged"] === "true" ? "Yes" : "",
-          cls: it["@read"] === "true" ? "match_read" : "match_unread",
+          cls: it["@matchRead"] === "true" ? "match_read" : "match_unread",
           id: it["@id"]
         };
       });
@@ -84,9 +88,26 @@ export default {
     itemClass(item) {
       return item.cls;
     },
+    unmatch(item) {
+      try {
+        let match = this.gedcom.model.matches.find(it => it["@id"] === item.id);
+        this.$store.dispatch("gedcomUnmatch", { data: match });
+      } catch (err) {
+        this.$store.dispatch("notificationsAdd", err);
+      }
+    },
     onClick(item) {
-      let match = this.gedcom.model.matches.find(it => it["@id"] === item.id);
-      fetchItem(this.gedcom.model, match, MATCHES);
+      try {
+        let match = this.gedcom.model.matches.find(it => it["@id"] === item.id);
+        this.$store.dispatch("prefsMarkRead", {
+          model: this.gedcom.model,
+          data: match,
+          component: MATCHES
+        });
+        fetchItem(this.gedcom.model, match, MATCHES);
+      } catch (err) {
+        this.$store.dispatch("notificationsAdd", err);
+      }
     }
   }
 };

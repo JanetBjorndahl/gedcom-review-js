@@ -2,7 +2,7 @@
   <v-container fluid class="overview">
     <v-row>
       <v-col>
-        <h3>Next steps:</h3>
+        <h3>Instructions</h3>
       </v-col>
     </v-row>
     <v-row dense>
@@ -22,9 +22,30 @@
     </v-row>
     <v-row dense>
       <v-col cols="3" offset="1">
-        <v-btn small @click="removeGedcom" :disabled="!gedcom.model.isUpdatable">
-          Remove this GEDCOM
-        </v-btn>
+        <v-dialog v-model="dialog" persistent max-width="290">
+          <template v-slot:activator="{ on, attrs }">
+            <v-btn small v-bind="attrs" v-on="on" :disabled="!gedcom.model.isUpdatable">
+              Remove this GEDCOM
+            </v-btn>
+          </template>
+          <v-card>
+            <v-card-title class="headline">
+              Are you sure?
+            </v-card-title>
+            <v-card-text>
+              If you remove your GEDCOM, the work you have done to prepare your GEDCOM for import will be lost.
+            </v-card-text>
+            <v-card-actions>
+              <v-spacer></v-spacer>
+              <v-btn color="green darken-1" text @click="dialog = false">
+                Cancel
+              </v-btn>
+              <v-btn color="green darken-1" text @click="removeGedcom">
+                Remove
+              </v-btn>
+            </v-card-actions>
+          </v-card>
+        </v-dialog>
       </v-col>
       <v-col>
         In case you change your mind about uplading this GEDCOM, you can remove it.
@@ -149,13 +170,20 @@
 
 <script>
 import { mapState } from "vuex";
-import { HELPPAGES, OVERVIEW, getPersonFullName, getEventFact } from "@/utils/ModelUtils.js";
+import { HELPPAGES, OVERVIEW, STATUS_DELETE, getPersonFullName, getEventFact } from "@/utils/ModelUtils";
 import { loadPageTitle } from "@/utils/WeRelateUtils";
+import { WR_SERVER } from "@/services/Server";
+import { loadParentContent } from "@/services/ExternalInterface";
 
 export default {
   name: "Overview",
   mounted() {
     loadPageTitle(HELPPAGES[OVERVIEW]);
+  },
+  data() {
+    return {
+      dialog: false
+    };
   },
   computed: {
     primaryPersonFullName() {
@@ -171,10 +199,20 @@ export default {
   },
   methods: {
     returnToWeRelate() {
-      console.log("return to werelate");
+      try {
+        loadParentContent("https://" + WR_SERVER);
+      } catch (err) {
+        this.$store.dispatch("notificationsAdd", err);
+      }
     },
     removeGedcom() {
-      console.log("remove gedcom");
+      try {
+        this.$store.dispatch("gedcomUpdateStatus", { status: STATUS_DELETE });
+        // TODO
+        // loadParentContent("https://" + WR_SERVER);
+      } catch (err) {
+        this.$store.dispatch("notificationsAdd", err);
+      }
     }
   }
 };

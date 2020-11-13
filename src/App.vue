@@ -58,8 +58,9 @@ export default {
     Notifications
   },
   created() {
-    // TODO get gedcomId from window.location or window.parent.location
-    let gedcomId = 13541;
+    let result = window.location.href.match(/gedcomId=(\d+)/);
+    let gedcomId = result ? result[1] : 0;
+    console.log("gedcomId", gedcomId);
     store.dispatch("prefsRead").then(() => {
       store.dispatch("gedcomRead", gedcomId).then(() => {
         store.dispatch("gedcomReadData", gedcomId);
@@ -68,6 +69,41 @@ export default {
   },
   mounted() {
     NProgress.configure({ parent: "#container-wrapper" });
+    // set up callbacks from php code
+    window.review = {
+      loadGedcomId(id) {
+        try {
+          console.log("loadGedcomId", id);
+          // loadGedcomId(store.state.gedcom.model, id);
+        } catch (err) {
+          console.log("loadGedcomId error", err);
+        }
+      },
+      matchFound(title) {
+        try {
+          // console.log("matchFound", title);
+          store.dispatch("gedcomMatchFound", { title });
+        } catch (err) {
+          console.log("matchFound error", err);
+        }
+      },
+      matchesFound(matchesString, merged, all) {
+        try {
+          // console.log("matchesFound", matchesString, merged, all);
+          store.dispatch("gedcomMatchesFound", { matchesString, merged, all });
+        } catch (err) {
+          console.log("matchesFound error", err);
+        }
+      },
+      pageUpdated(id) {
+        try {
+          // console.log("pageUpdated", id);
+          store.dispatch("gedcomPageUpdated", { id });
+        } catch (err) {
+          console.log("pageUpdated error", err);
+        }
+      }
+    };
   },
   props: {
     source: String

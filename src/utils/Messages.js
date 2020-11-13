@@ -47,14 +47,5 @@ export const MESSAGES = {
     "Error reading the GEDCOM; please try again in a few minutes; if you have questions, please contact dallan@werelate.org",
   gedcomhold:
     "The GEDCOM has been placed on hold. Please go to your talk page (select Talk Page from the MyRelate menu) for more information.",
-  unexpectederror: "Something went wrong. It's our fault. Please try again later.",
-  // tips
-  tip_match:
-    'Link the people in your GEDCOM to existing people at WeRelate. First, check the box above the matching family.  If multiple families match, just check one. You can merge the others after you upload your GEDCOM. Second, check the boxes above the matching husband and wife, and set the child number under each child in the matching family to the number of the matching child in the GEDCOM family. Third, click "Match" to match the family.',
-  tip_merge:
-    'Congratulations! Now that you have matched your family to an existing family, you can now update the existing family with information from your GEDCOM. Updating the existing family is optional. It is not necessary or desirable to update unless you have more accurate information or reliable sources to add. If your GEDCOM has too many warnings you will not be able to update the existing families at this time. To update, check the boxes to the left of the information you want to add, and click "Update".',
-  tip_find_add_place:
-    'To find or add a matching place in the place index: First, make sure that the name of the place is correct in the form below and click "Find/Add". Then, click "Select" to select one the places shown, or "Add" to create a new place page.',
-  tip_find_add_source:
-    'To find or add a matching source in the source index: First, select the type of source, fill in any missing information, and click "Find/Add". Then, click "Select" to select one the sources shown, or "Add" to create a new source page.'
+  unexpectederror: "Something went wrong. It's our fault. Please try again later."
 };

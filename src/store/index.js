@@ -1,8 +1,8 @@
 import Vue from "vue";
 import Vuex from "vuex";
-import * as gedcom from "./modules/gedcom.js";
-import * as prefs from "./modules/prefs.js";
-import * as notifications from "./modules/notifications.js";
+import * as gedcom from "./modules/gedcom";
+import * as prefs from "./modules/prefs";
+import * as notifications from "./modules/notifications";
 
 Vue.use(Vuex);
 

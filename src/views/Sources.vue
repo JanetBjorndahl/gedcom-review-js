@@ -9,7 +9,21 @@
       :item-class="itemClass"
       :search="search"
       @click:row="onClick"
-    ></v-data-table>
+    >
+      <template v-slot:item.exclude="{ item }">
+        <v-simple-checkbox
+          :value="item.exclude"
+          @input="toggleItemExclude(item, $event)"
+          :ripple="false"
+          :disabled="!gedcom.model.isUpdatable"
+        ></v-simple-checkbox>
+      </template>
+      <template v-slot:item.unmatch="{ item }">
+        <v-icon medium dense v-if="!item.exclude && item.matchedPage" @click.stop="unmatch(item)"
+          >mdi-link-variant-off</v-icon
+        >
+      </template>
+    </v-data-table>
   </v-container>
 </template>
 
@@ -43,6 +57,10 @@ export default {
         {
           text: "Matched Page",
           value: "matchedPage"
+        },
+        {
+          text: "Unmatch",
+          value: "unmatch"
         }
       ]
     };
@@ -54,7 +72,7 @@ export default {
       }
       return this.gedcom.model.sources.map(it => {
         return {
-          exclude: it["@exclude"],
+          exclude: it["@exclude"] === "true",
           title: getMySourceName(it, null),
           author: it["author"] ? it["author"][0]["#text"] : "",
           matchedPage: it["@match"],
@@ -76,14 +94,34 @@ export default {
     itemClass(item) {
       return item.cls;
     },
+    toggleItemExclude(item, $event) {
+      try {
+        let source = this.gedcom.model.sources.find(it => it["@id"] === item.id);
+        this.$store.dispatch("gedcomSetExclude", { data: source, exclude: $event ? "true" : "false" });
+      } catch (err) {
+        this.$store.dispatch("notificationsAdd", err);
+      }
+    },
+    unmatch(item) {
+      try {
+        let source = this.gedcom.model.sources.find(it => it["@id"] === item.id);
+        this.$store.dispatch("gedcomUnmatch", { data: source });
+      } catch (err) {
+        this.$store.dispatch("notificationsAdd", err);
+      }
+    },
     onClick(item) {
-      let source = this.gedcom.model.sources.find(it => it["@id"] === item.id);
-      this.$store.dispatch("prefsMarkRead", {
-        model: this.gedcom.model,
-        data: source,
-        component: SOURCES
-      });
-      fetchItem(this.gedcom.model, source, SOURCES);
+      try {
+        let source = this.gedcom.model.sources.find(it => it["@id"] === item.id);
+        this.$store.dispatch("prefsMarkRead", {
+          model: this.gedcom.model,
+          data: source,
+          component: SOURCES
+        });
+        fetchItem(this.gedcom.model, source, SOURCES);
+      } catch (err) {
+        this.$store.dispatch("notificationsAdd", err);
+      }
     }
   }
 };

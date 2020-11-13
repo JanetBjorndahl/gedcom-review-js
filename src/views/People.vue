@@ -5,16 +5,25 @@
       dense
       :headers="headers"
       :items="items"
+      item-key="id"
       :items-per-page="10"
       :item-class="itemClass"
       :search="search"
       @click:row="onClick"
     >
+      <template v-slot:item.exclude="{ item }">
+        <v-simple-checkbox
+          :value="item.exclude"
+          @input="toggleItemExclude(item, $event)"
+          :ripple="false"
+          :disabled="!gedcom.model.isUpdatable || (!gedcom.model.isAdmin && (item.living || item.beforeCutoff))"
+        ></v-simple-checkbox>
+      </template>
       <template v-slot:item.living="{ item }">
         <v-simple-checkbox v-model="item.living" disabled></v-simple-checkbox>
       </template>
-      <template v-slot:item.early="{ item }">
-        <v-simple-checkbox v-model="item.early" disabled></v-simple-checkbox>
+      <template v-slot:item.beforeCutoff="{ item }">
+        <v-simple-checkbox v-model="item.beforeCutoff" disabled></v-simple-checkbox>
       </template>
     </v-data-table>
   </v-container>
@@ -65,7 +74,7 @@ export default {
         },
         {
           text: "Early",
-          value: "early"
+          value: "beforeCutoff"
         },
         {
           text: "Matched Page",
@@ -81,14 +90,14 @@ export default {
       }
       return this.gedcom.model.people.map(it => {
         return {
-          exclude: it["@exclude"],
+          exclude: it["@exclude"] === "true",
           stdName: getPersonFullName(it),
           gender: it["gender"] ? it["gender"][0]["#text"] : "",
           birth: it["@living"] === "true" ? "living" : (getEventFact(it, "Birth") || {})["@date"],
           death: it["@living"] === "true" ? "living" : (getEventFact(it, "Death") || {})["@date"],
           distance: it["@distance"] === NOT_CONNECTED ? "not connected to root" : Math.ceil(it["@distance"] / 2),
           living: it["@living"] === "true",
-          early: it["@early"] === "true",
+          beforeCutoff: it["@beforeCutoff"] === "true",
           matchedPage: it["@match"],
           cls: it["@exclude"] === "true" ? "person_excluded" : "person_included",
           id: it["@id"]
@@ -101,9 +110,21 @@ export default {
     itemClass(item) {
       return item.cls;
     },
+    toggleItemExclude(item, $event) {
+      try {
+        let person = this.gedcom.model.people.find(it => it["@id"] === item.id);
+        this.$store.dispatch("gedcomSetExclude", { data: person, exclude: $event ? "true" : "false" });
+      } catch (err) {
+        this.$store.dispatch("notificationsAdd", err);
+      }
+    },
     onClick(item) {
-      let person = this.gedcom.model.people.find(it => it["@id"] === item.id);
-      fetchItem(this.gedcom.model, person, PEOPLE);
+      try {
+        let person = this.gedcom.model.people.find(it => it["@id"] === item.id);
+        fetchItem(this.gedcom.model, person, PEOPLE);
+      } catch (err) {
+        this.$store.dispatch("notificationsAdd", err);
+      }
     }
   }
 };

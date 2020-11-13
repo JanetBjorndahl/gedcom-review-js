@@ -17,11 +17,15 @@ export const mutations = {
 };
 export const actions = {
   notificationsAdd({ commit }, notification) {
-    if (notification.error === "-2") {
-      notification.message = "Please log in";
-      notification.type = "blue";
+    let message = "";
+    if (!notification) {
+      message = "Unknown error";
+    } else if (notification.message) {
+      message = notification.message;
+    } else if (notification["@status"]) {
+      message = notification["@status"];
     }
-    commit("NOTIFICATIONS_PUSH", notification);
+    commit("NOTIFICATIONS_PUSH", { message, type: "error" });
   },
   notificationsRemove({ commit }, id) {
     commit("NOTIFICATIONS_DELETE", id);

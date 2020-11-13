@@ -18,18 +18,18 @@
           Return to user review
         </v-btn>
       </v-col>
-      <v-col>
-        <v-btn small @click="putOnHold" :disabled="!gedcom.model.isHoldable">
-          Put on hold
-        </v-btn>
-      </v-col>
+      <!--      <v-col>-->
+      <!--        <v-btn small @click="putOnHold" :disabled="!gedcom.model.isHoldable">-->
+      <!--          Put on hold-->
+      <!--        </v-btn>-->
+      <!--      </v-col>-->
     </v-row>
   </v-container>
 </template>
 
 <script>
 import { loadPageTitle } from "@/utils/WeRelateUtils";
-import { HELPPAGES, IMPORT } from "@/utils/ModelUtils";
+import { HELPPAGES, IMPORT, STATUS_PHASE2, STATUS_PHASE3 } from "@/utils/ModelUtils";
 import { mapState } from "vuex";
 
 export default {
@@ -44,17 +44,75 @@ export default {
   computed: mapState(["gedcom"]),
   methods: {
     readyToImport() {
-      console.log("readyToImport");
+      try {
+        let warning = getImportWarning(this.gedcom.model);
+        this.$store.dispatch("gedcomUpdateStatus", { status: STATUS_PHASE3, warning: warning });
+      } catch (err) {
+        this.$store.dispatch("notificationsAdd", err);
+      }
     },
     visitUserTalk() {
-      console.log("visitUserTalk");
+      try {
+        loadPageTitle("User talk:" + this.gedcom.model.userName);
+      } catch (err) {
+        this.$store.dispatch("notificationsAdd", err);
+      }
     },
     returnToReview() {
-      console.log("returnToReview");
-    },
-    putOnHold() {
-      console.log("putOnHold");
+      this.$store.dispatch("gedcomUpdateStatus", { status: STATUS_PHASE2 });
+      // },
+      // putOnHold() {
+      //   console.log("putOnHold");
     }
   }
 };
+
+function getImportWarning(model) {
+  let warning = "";
+  // check for pre-1500 birthdate or marriage
+  var found = false;
+  if (!found) {
+    for (let page of model.people) {
+      let date = page["@stdDate"];
+      if (page["@exclude"] !== "true" && date && +date.substr(0, 4) <= 1500) {
+        found = true;
+        break;
+      }
+    }
+  }
+  if (!found) {
+    for (let page of model.families) {
+      let date = page["@stdDate"];
+      if (page["@exclude"] !== "true" && date && +date.substr(0, 4) <= 1500) {
+        found = true;
+        break;
+      }
+    }
+  }
+  if (found) {
+    warning += "medieval people";
+  }
+
+  // check for absence of sources or notes
+  found = false;
+  for (let page of model.people) {
+    if (page["@exclude"] !== "true") {
+      if (page["source_citation"] && page["source_citation"].length > 0) found = true;
+      if (page["note"] && page["note"].length > 0) found = true;
+    }
+    if (found) break;
+  }
+  for (let page of model.families) {
+    if (page["@exclude"] !== "true") {
+      if (page["source_citation"] && page["source_citation"].length > 0) found = true;
+      if (page["note"] && page["note"].length > 0) found = true;
+    }
+    if (found) break;
+  }
+  if (!found) {
+    if (warning.length > 0) warning += "; ";
+    warning += "no sources/notes";
+  }
+  return warning;
+}
 </script>

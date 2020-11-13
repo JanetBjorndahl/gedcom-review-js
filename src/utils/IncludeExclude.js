@@ -1,11 +1,72 @@
-import {
-  NS_PERSON,
-  NS_FAMILY,
-  NOT_CONNECTED,
-  MAX_PEOPLE,
-  getPersonFamilyData,
-  getReferences
-} from "@/utils/ModelUtils.js";
+import { NS_PERSON, NS_FAMILY, NOT_CONNECTED, MAX_PEOPLE, getReferences } from "@/utils/ModelUtils";
+
+export function updateRootDistances(model) {
+  for (let person of model.people) {
+    person["@distance"] = NOT_CONNECTED;
+  }
+  for (let family of model.families) {
+    family["@distance"] = NOT_CONNECTED;
+  }
+  if (model.primaryPerson !== null && model.people.length <= MAX_PEOPLE) {
+    model.primaryPerson["@distance"] = 0;
+    updateRelatedDistanceInclude(model, model.primaryPerson, null);
+  }
+}
+
+export function includeItem(model, data, includedItems) {
+  data["@exclude"] = "false";
+  includedItems.push(data);
+  if (+data["@ns"] === NS_PERSON || +data["@ns"] === NS_FAMILY) {
+    // include excluded sources referenced by this page
+    for (let sc of data["source_citation"] || []) {
+      let sourceId = sc["@source_id"];
+      if (sourceId) {
+        let page = model.sourceMap[sourceId];
+        if (page && page["@exclude"] === "true") {
+          includeItem(model, page, includedItems);
+        }
+      }
+    }
+  }
+  if ((+data["@ns"] === NS_PERSON || +data["@ns"] === NS_FAMILY) && model.people.length <= MAX_PEOPLE) {
+    data["@distance"] = getMinDistance(model, data);
+    if (data["@distance"] !== NOT_CONNECTED) {
+      updateRelatedDistanceInclude(model, data, includedItems);
+    }
+  }
+  if (+data["@ns"] === NS_PERSON) {
+    includeRelatedFamilies(model, data, includedItems);
+  }
+}
+
+export function excludeItem(model, data, excludedItems) {
+  data["@exclude"] = "true";
+  excludedItems.push(data);
+  if (+data["@ns"] === NS_PERSON || +data["@ns"] === NS_FAMILY) {
+    // excluded sources referenced only by this page
+    for (let sc of data["source_citation"] || []) {
+      let sourceId = sc["@source_id"];
+      if (sourceId) {
+        let page = model.sourceMap[sourceId];
+        if (page) {
+          let found = false;
+          for (let pf of getReferences(model, page)) {
+            if (pf["@exclude"] !== "true") {
+              found = true;
+              break;
+            }
+          }
+          if (!found) {
+            excludeItem(model, page, excludedItems);
+          }
+        }
+      }
+    }
+  }
+  if (data["@ns"] === NS_PERSON) {
+    excludeRelatedFamilies(model, data, excludedItems);
+  }
+}
 
 function getRefDistance(model, id, ns) {
   let data = getPersonFamilyData(model, id, ns);
@@ -93,32 +154,6 @@ function includeRelatedFamilies(model, data, includedItems) {
   for (let ref of data["spouse_of_family"] || []) testIncludeFamily(model, ref["@id"], includedItems);
 }
 
-export function includeItem(model, data, includedItems) {
-  data["@exclude"] = "false";
-  includedItems.push(data);
-  if (+data["@ns"] === NS_PERSON || +data["@ns"] === NS_FAMILY) {
-    // include excluded sources referenced by this page
-    for (let sc of data["source_citation"] || []) {
-      let sourceId = sc["@source_id"];
-      if (sourceId) {
-        let page = model.sourceMap[sourceId];
-        if (page && page["@exclude"] === "true") {
-          includeItem(model, page, includedItems);
-        }
-      }
-    }
-  }
-  if ((+data["@ns"] === NS_PERSON || +data["@ns"] === NS_FAMILY) && model.people.length <= MAX_PEOPLE) {
-    data["@distance"] = getMinDistance(model, data);
-    if (data["@distance"] !== NOT_CONNECTED) {
-      updateRelatedDistanceInclude(model, data, includedItems);
-    }
-  }
-  if (+data["@ns"] === NS_PERSON) {
-    includeRelatedFamilies(model, data, includedItems);
-  }
-}
-
 function updateRelatedDistanceExcludeRelative(model, id, ns) {
   let relative = getPersonFamilyData(model, id, ns);
   if (relative && relative["@exclude"] !== "true") {
@@ -154,44 +189,6 @@ function excludeRelatedFamilies(model, data, excludedItems) {
   for (let ref of data["spouse_of_family"] || []) testExcludeFamily(model, ref["@id"], excludedItems);
 }
 
-export function excludeItem(model, data, excludedItems) {
-  data["@exclude"] = "true";
-  excludedItems.push(data);
-  if (+data["@ns"] === NS_PERSON || +data["@ns"] === NS_FAMILY) {
-    // excluded sources referenced only by this page
-    for (let sc of data["source_citation"] || []) {
-      let sourceId = sc["@source_id"];
-      if (sourceId) {
-        let page = model.sourceMap[sourceId];
-        if (page) {
-          let found = false;
-          for (let pf of getReferences(model, page)) {
-            if (pf["@exclude"] !== "true") {
-              found = true;
-              break;
-            }
-          }
-          if (!found) {
-            excludeItem(model, page, excludedItems);
-          }
-        }
-      }
-    }
-  }
-  if (data["@ns"] === NS_PERSON) {
-    excludeRelatedFamilies(model, data, excludedItems);
-  }
-}
-
-export function updateRootDistances(model) {
-  for (let person of model.people) {
-    person["@distance"] = NOT_CONNECTED;
-  }
-  for (let family of model.families) {
-    family["@distance"] = NOT_CONNECTED;
-  }
-  if (model.primaryPerson !== null && model.people.length <= MAX_PEOPLE) {
-    model.primaryPerson["@distance"] = 0;
-    updateRelatedDistanceInclude(model, model.primaryPerson, null);
-  }
+function getPersonFamilyData(model, id, ns) {
+  return ns === NS_PERSON ? model.personMap[id] : model.familyMap[id];
 }

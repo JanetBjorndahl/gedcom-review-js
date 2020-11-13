@@ -72,13 +72,17 @@ export default {
       return item.cls;
     },
     onClick(item) {
-      let warning = this.gedcom.model.warnings.find(w => w["@id"] === item.id);
-      this.$store.dispatch("prefsMarkRead", {
-        model: this.gedcom.model,
-        data: warning,
-        component: WARNINGS
-      });
-      fetchItem(this.gedcom.model, warning, WARNINGS);
+      try {
+        let warning = this.gedcom.model.warnings.find(w => w["@id"] === item.id);
+        this.$store.dispatch("prefsMarkRead", {
+          model: this.gedcom.model,
+          data: warning,
+          component: WARNINGS
+        });
+        fetchItem(this.gedcom.model, warning, WARNINGS);
+      } catch (err) {
+        this.$store.dispatch("notificationsAdd", err);
+      }
     }
   }
 };

@@ -10,7 +10,7 @@ export function xmlToJson(xml) {
 
   if (xml.nodeType === 1) {
     // element
-    obj["#name"] = xml.nodeName;
+    obj["#tag"] = xml.nodeName;
     // do attributes
     for (let j = 0; j < xml.attributes.length; j++) {
       let attribute = xml.attributes.item(j);
@@ -44,7 +44,7 @@ export function xmlToJson(xml) {
 }
 
 export function toXMLString(data) {
-  let tag = data["#name"] || "unknown";
+  let tag = data["#tag"] || "gedcom";
   let text = data["#text"] || "";
   let content = data["#content"] || "";
   let attrs = [];

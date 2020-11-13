@@ -1,4 +1,6 @@
 import lodash from "lodash";
+import { getDateSortKey } from "@/utils/DateUtils";
+import { parseXML, xmlToJson } from "@/utils/XMLUtils";
 
 export const NS_SOURCE = 104;
 export const NS_PLACE = 106;
@@ -58,6 +60,10 @@ export const NOMATCH = "#nomatch#";
 
 export const NAME_MATCH_THRESHOLD = 60;
 
+export function cloneShallow(obj) {
+  return Object.assign(Object.create(Object.getPrototypeOf(obj)), obj);
+}
+
 export function getDefaultComponent(ns) {
   if (ns === NS_FAMILY) return FAMILIES;
   if (ns === NS_PERSON) return PEOPLE;
@@ -86,41 +92,6 @@ export function getDataComponent(model, id) {
   return null;
 }
 
-export function cleanName(name) {
-  return name.replace(/[?~!@#$%^&*.()_+=/<>{}[\];:"\\,|]/g, " ").replace(/\s+/g, " ");
-}
-
-export function cleanWikiTitle(title) {
-  title = title
-    .replace(/[<[{]/g, "(")
-    .replace(/[>\]}]/g, ")")
-    .replace(/\|/g, "-")
-    .replace(/_/g, " ")
-    .replace(/#/g, "number ")
-    .replace(/\?/g, " question ")
-    .replace(/\+/g, " plus ")
-    .replace(/%([0-9a-fA-F][0-9a-fA-F])/g, "% $1")
-    .replace(/\s+/g, " ")
-    .replace(/\/\/+/g, "/");
-  title = title.trim();
-  while (title.length > 0 && (title.startsWith(".") || title.startsWith("/"))) {
-    title = title.substr(1);
-  }
-  if (title.length > 150) {
-    title = title.substr(0, 149);
-  }
-  return capitalize(title);
-}
-
-export function getPrebarTitle(fullTitle) {
-  let pos = fullTitle.indexOf("|");
-  return pos > 0 ? fullTitle.substr(0, pos) : fullTitle;
-}
-
-export function getPersonFamilyData(model, id, ns) {
-  return ns === NS_PERSON ? model.personMap[id] : model.familyMap[id];
-}
-
 export function getPrefixedTitle(ns, title) {
   if (title.indexOf(NAMESPACES[ns] + ":") !== 0) {
     return NAMESPACES[ns] + ":" + title;
@@ -137,81 +108,12 @@ export function getUnprefixedTitle(prefixedTitle) {
   return prefixedTitle;
 }
 
-export function getFullName(name) {
-  if (!name) {
-    return "";
-  }
-  return (
-    name["@surname"] +
-    "," +
-    (name["@title_prefix"] ? " " + name["@title_prefix"] : "") +
-    (name["@given"] ? " " + name["@given"] : "") +
-    (name["@title_suffix"] ? " " + name["@title_suffix"] : "")
-  );
-}
-
-export function getPersonFullName(person) {
-  if (!person) {
-    return "";
-  }
-  return getFullName(person["name"] ? person["name"][0] : null);
-}
-
-export function getPersonTitle(person) {
-  let name = "";
-  if (person["@living"] === "true") {
-    name = "Living";
-  } else {
-    name = person["name"] && person["name"][0]["@given"] ? person["name"][0]["@given"].trim() : "";
-    let pos = name.indexOf(" ");
-    if (pos > 0) {
-      name = name.substr(0, pos);
-    }
-  }
-  name = cleanName(name + " " + (person["name"] && person["name"][0]["@surname"] ? person["name"][0]["@surname"] : ""));
-  return cleanWikiTitle(capitalize(name));
-}
-
-export function getFamilyTitle(husband, wife) {
-  var title = "";
-  title += husband ? getPersonTitle(husband) : "Unknown";
-  title += " and ";
-  title += wife ? getPersonTitle(wife) : "Unknown";
-  return title;
-}
-
-export function getFamilyFullName(family) {
-  return (
-    getFullName(family["husband"] ? family["husband"][0] : null) +
-    " and " +
-    getFullName(family["wife"] ? family["wife"][0] : null)
-  );
-}
-
 export function getPersonFamilyName(data) {
   if (+data["@ns"] === NS_PERSON) {
     return getPersonFullName(data);
   } else {
     return getFamilyFullName(data);
   }
-}
-
-export function getMySourceName(mysource, userName) {
-  let title = "Source";
-  if (mysource["title"] && mysource["title"][0]["#text"]) {
-    title = mysource["title"][0]["#text"];
-  } else if (mysource["abbrev"] && mysource["abbrev"][0]["#text"]) {
-    title = mysource["abbrev"][0]["#text"];
-  } else if (mysource["author"] && mysource["author"][0]["#text"]) {
-    title = mysource["author"][0]["#text"];
-    if (mysource["publication_info"] && mysource["publication_info"][0]["#text"]) {
-      title += " " + mysource["publication_info"][0]["#text"];
-    }
-  }
-  if (userName) {
-    title = userName + "/" + title;
-  }
-  return cleanWikiTitle(title);
 }
 
 export function getReferences(model, data) {
@@ -256,105 +158,235 @@ export function getReferences(model, data) {
   return references;
 }
 
-export function getMySourceCitationIds(data) {
-  let ids = [];
-  for (let sc of data["source_citation"] || []) {
-    let id = sc["@source_id"];
-    if (!ids.includes(id)) ids.push(id);
+export function getGedcomPageTitle(model, data) {
+  if (+data["@ns"] === NS_PERSON) {
+    return getGedcomPersonTitle(data);
+  } else if (+data["@ns"] === NS_FAMILY) {
+    return getGedcomFamilyTitle(model, data);
+  } else if (+data["@ns"] === NS_MYSOURCE) {
+    return getGedcomSourceTitle(model, data);
   }
-  return ids;
+  return "";
 }
 
-function compareNames(name1, name2, threshold) {
-  let score = 0;
-  name1 = name1.trim();
-  name2 = name2.trim();
-  if (name1.length > 0 && name2.length > 0) {
-    let namePieces1 = name1.split(/[ ,\-']+/);
-    let namePieces2 = name2.split(/[ ,\-']+/);
-    for (let namePiece1 of namePieces1) {
-      namePiece1 = namePiece1.toLowerCase();
-      for (let namePiece2 of namePieces2) {
-        namePiece2 = namePiece2.toLowerCase();
-        if (namePiece1 === namePiece2) score += 2;
-        else if (similarity(namePiece1, namePiece2) >= threshold) score += 1;
+export function preparePageData(model, data, findAdd = false) {
+  // convert titles (excluded, matched); handle living
+  // IMPORTANT of order to handle editing the page properly, loading a single page MUST use
+  // the GEDCOM title including the GEDCOM key for ref.@title attrs
+  let clone = lodash.cloneDeep(data);
+
+  // set the page title
+  clone["@title"] = getPrefixedTitle(+data["@ns"], getGedcomPageTitle(model, data));
+  clone["@merged"] = data["@merged"];
+
+  // update pf titles (living, excluded), place titles, source titles
+  for (let node of clone["child_of_family"] || []) updateFamilyRef(model, node, findAdd);
+  for (let node of clone["spouse_of_family"] || []) updateFamilyRef(model, node, findAdd);
+  for (let node of clone["husband"] || []) updatePersonRef(model, node, findAdd);
+  for (let node of clone["wife"] || []) updatePersonRef(model, node, findAdd);
+  for (let node of clone["child"] || []) updatePersonRef(model, node, findAdd);
+  for (let node of clone["event_fact"] || []) updateEventFact(model, node);
+  for (let node of clone["source_citation"] || []) updateSourceCitation(model, node, findAdd);
+
+  if (findAdd) {
+    deleteExcluded(clone["child_of_family"]);
+    deleteExcluded(clone["spouse_of_family"]);
+    deleteExcluded(clone["husband"]);
+    deleteExcluded(clone["wife"]);
+    deleteExcluded(clone["child"]);
+    deleteExcluded(clone["source_citation"]);
+  }
+  return clone;
+}
+
+export function getWarningPersonFamily(warn) {
+  return +warn["@ns"] === NS_PERSON ? warn["person"][0] : warn["family"][0];
+}
+
+export function getWarningLevelDesc(warn) {
+  let level = "";
+  if (warn["@warningLevel"] === 0) {
+    level = "alert";
+  } else if (warn["@warningLevel"] === 1) {
+    level = "warning";
+  } else if (warn["@warningLevel"] === 2) {
+    level = "error";
+  } else if (warn["@warningLevel"] === 3) {
+    level = "duplicate";
+  }
+  return level;
+}
+
+export function getEventFact(obj, typ) {
+  if (!obj || !obj["event_fact"]) {
+    return null;
+  }
+  return obj["event_fact"].find(ef => ef["@type"] === typ);
+}
+
+export function itemUpdated(model, data) {
+  let ns = +data["@ns"];
+  if (data["@warningLevel"]) {
+    // model.warningsItemUpdated(data)
+  } else if (ns === NS_PERSON || ns === NS_FAMILY) {
+    if (ns === NS_PERSON) {
+      // model.peopleItemUpdated(data);
+    } else if (ns === NS_FAMILY) {
+      // model.familiesItemUpdated(data);
+      if (data["@exclude"] !== "true" && (data["@match"] || data["@matches"])) {
+        model.addUpdateMatch(data);
+      } else {
+        model.removeMatch(data);
       }
     }
-  }
-  return score;
-}
-
-function compareFamily(model, matchingTitle, family, data, isSpouse, threshold) {
-  let score = 0;
-  let pattern = /(.*)\s+and\s+(.*)\s+\(\d+\)/i;
-  let result = pattern.exec(matchingTitle);
-  if (result != null) {
-    let matchingHusbandName = result[1];
-    let husband = family["husband"] ? model.personMap[family["husband"][0]["@id"]] : null;
-    let husbandName = husband && husband["name"] ? getFullName(husband["name"][0]) : "";
-    if (!isSpouse || (data["gender"] && data["gender"][0]["#text"] === "F")) {
-      score += compareNames(matchingHusbandName, husbandName, threshold);
+    if (data["@warning"] && data["@exclude"] !== "true") {
+      model.addUpdateWarnings(data);
+    } else {
+      model.removeWarnings(data);
     }
-
-    let matchingWifeName = result[2];
-    let wife = family["wife"] ? model.personMap[family["wife"][0]["@id"]] : null;
-    let wifeName = wife && wife["name"] ? getFullName(wife["name"][0]) : "";
-    if (!isSpouse || (data["gender"] && data["gender"][0]["#text"] === "M")) {
-      score += compareNames(matchingWifeName, wifeName, threshold);
-    }
-  }
-  return score;
-}
-
-function compareFamilies(model, matchTitles, families, data, isSpouse, threshold, matchedFamilies, matchedTitles) {
-  let matched = [];
-  for (let i = 0; i < families.length; i++) {
-    let bestScore = 0;
-    let bestTitle = -1;
-    for (let j = 0; j < matchTitles.length; j++) {
-      if (!matched[j]) {
-        let score = compareFamily(model, matchTitles[j], families[i], data, isSpouse, threshold);
-        if (score > bestScore) {
-          bestScore = score;
-          bestTitle = j;
-        } else if (score > 0 && score === bestScore) {
-          // don't match either if >1 title with same score
-          bestTitle = -1;
-        }
-      }
-    }
-    if (bestTitle >= 0) {
-      matchedFamilies.push(families[i]);
-      matchedTitles.push(matchTitles[bestTitle]);
-      matched[bestTitle] = true;
-    }
+  } else if (ns === NS_PLACE) {
+    // model.placesItemUpdated(data);
+  } else if (ns === NS_MYSOURCE) {
+    // model.sourcesItemUpdated(data);
   }
 }
 
-export function matchRelatedFamilies(model, person, match, threshold, matchedFamilies, matchedTitles) {
-  // compare parents
-  let families = [];
-  let matchTitles = [];
-  for (let ref of person["child_of_family"] || []) {
-    let family = model.familyMap[ref["@id"]];
-    if (family) families.push(family);
-  }
-  for (let matchingFamily of match["child_of_family"] || []) {
-    matchTitles.push(matchingFamily["@title"]);
-  }
-  compareFamilies(model, matchTitles, families, person, false, threshold, matchedFamilies, matchedTitles);
+// export function updatePrimary(model, data) {
+//   model.primaryPerson = data;
+//   data["@exclude"] = "true"; // force inclusion of root"s ancestors by marking root excluded to start
+//   let includedItems = [];
+//   //ie.includeSelfAndAncestors(data, includedItems);
+//   includeItem(model, data, includedItems);
+//   updateRootDistances(model);
+//   executeServiceCall(wr.updatePrimaryPage(model.gedcomId, data.@id), makeRoot_result, wr.service_fault);
+//   saveIncludeExclude("false", includedItems);
+// }
 
-  // compare spouses
-  families = [];
-  matchTitles = [];
-  for (let ref of person["spouse_of_family"] || []) {
-    let family = model.familyMap[ref["@id"]];
-    if (family) families.push(family);
+export function setRead(model, data, read) {
+  data["@read"] = read;
+  itemUpdated(model, data);
+}
+
+export function setWarningRead(model, data, read) {
+  data["@warningRead"] = read;
+  itemUpdated(model, data);
+}
+
+export function setMatchRead(model, data, read) {
+  data["@matchRead"] = read;
+  itemUpdated(model, data);
+}
+
+export function setUpdateRead(model, data, read) {
+  data["@updateRead"] = read;
+  itemUpdated(model, data);
+}
+
+export function setMatchHelperFields(result) {
+  result["@stdMatch"] = result["@nomatch"] === "true" ? NOMATCH : result["@match"].toLowerCase();
+}
+
+export function updateData(model, data, text) {
+  let ns = +data["@ns"];
+  if (ns === NS_PERSON) {
+    let result = createModelObjectFromContent("person", text);
+    copyData(data, result);
+    setStdPersonAttrs(data);
+  } else if (ns === NS_FAMILY) {
+    let result = createModelObjectFromContent("family", text);
+    copyData(data, result);
+    setStdFamilyAttrs(data);
+  } else if (ns === NS_MYSOURCE) {
+    let result = createModelObjectFromContent("mysource", text);
+    copyData(data, result);
+    setStdMySourceAttrs(data);
   }
-  for (let matchingFamily of match["spouse_of_family"] || []) {
-    matchTitles.push(matchingFamily["@title"]);
+  itemUpdated(model, data);
+}
+
+export function createModelObjectFromContent(tag, content) {
+  let endTag = "</" + tag + ">";
+  let endPos = content.indexOf(endTag) + endTag.length;
+  let root = parseXML(content.substr(0, endPos));
+  let result = xmlToJson(root);
+  result["#content"] = content.substr(endPos).trim();
+  return result;
+}
+
+export function setStdPersonAttrs(person) {
+  person["@stdDate"] = getDateSortKey((getEventFact(person, "Birth") || {})["@date"]);
+  person["@stdDeathDate"] = getDateSortKey((getEventFact(person, "Death") || {})["@date"]);
+  person["@stdName"] = getPersonFullName(person).toLowerCase();
+}
+
+export function setStdFamilyAttrs(family) {
+  family["@stdHusbandName"] = getFullName(family["husband"] ? family["husband"][0] : null).toLowerCase();
+  family["@stdWifeName"] = getFullName(family["wife"] ? family["wife"][0] : null).toLowerCase();
+  family["@stdName"] = family["@stdHusbandName"] + " and " + family["@stdWifeName"];
+  family["@stdDate"] = getDateSortKey((getEventFact(family, "Marriage") || {})["@date"]);
+}
+
+export function setStdMySourceAttrs(mysource) {
+  mysource["@stdName"] = getMySourceName(mysource, null).toLowerCase();
+  mysource["@stdAuthor"] = (mysource["author"] && mysource["author"][0]["#text"]
+    ? mysource["author"][0]["#text"]
+    : ""
+  ).toLowerCase();
+}
+
+export function getFullName(name) {
+  if (!name) {
+    return "";
   }
-  compareFamilies(model, matchTitles, families, person, true, threshold, matchedFamilies, matchedTitles);
+  return (
+    name["@surname"] +
+    "," +
+    (name["@title_prefix"] ? " " + name["@title_prefix"] : "") +
+    (name["@given"] ? " " + name["@given"] : "") +
+    (name["@title_suffix"] ? " " + name["@title_suffix"] : "")
+  );
+}
+
+export function getPersonFullName(person) {
+  if (!person) {
+    return "";
+  }
+  return getFullName(person["name"] ? person["name"][0] : null);
+}
+
+export function getMySourceName(mysource, userName) {
+  let title = "Source";
+  if (mysource["title"] && mysource["title"][0]["#text"]) {
+    title = mysource["title"][0]["#text"];
+  } else if (mysource["abbrev"] && mysource["abbrev"][0]["#text"]) {
+    title = mysource["abbrev"][0]["#text"];
+  } else if (mysource["author"] && mysource["author"][0]["#text"]) {
+    title = mysource["author"][0]["#text"];
+    if (mysource["publication_info"] && mysource["publication_info"][0]["#text"]) {
+      title += " " + mysource["publication_info"][0]["#text"];
+    }
+  }
+  if (userName) {
+    title = userName + "/" + title;
+  }
+  return cleanWikiTitle(title);
+}
+
+//
+// local functions
+//
+
+function copyData(target, source) {
+  for (let key in target) {
+    if (target.hasOwnProperty(key) && !key.startsWith("@")) {
+      delete target[key];
+    }
+  }
+  for (let key in source) {
+    if (source.hasOwnProperty(key) && !key.startsWith("@")) {
+      target[key] = source[key];
+    }
+  }
 }
 
 function getGedcomPersonTitle(person) {
@@ -390,26 +422,6 @@ function getGedcomSourceTitle(model, source, findAdd = false) {
     }
     return title;
   }
-}
-
-export function getGedcomPageTitle(model, data) {
-  if (+data["@ns"] === NS_PERSON) {
-    return getGedcomPersonTitle(data);
-  } else if (+data["@ns"] === NS_FAMILY) {
-    return getGedcomFamilyTitle(model, data);
-  } else if (+data["@ns"] === NS_MYSOURCE) {
-    return getGedcomSourceTitle(model, data);
-  }
-  return "";
-}
-
-export function getGedcomKey(pageTitle) {
-  if (pageTitle != null) {
-    let start = pageTitle.lastIndexOf("(");
-    let end = pageTitle.lastIndexOf(" gedcom)");
-    if (start >= 0 && end > start) return pageTitle.substr(start + 1, end - start - 1);
-  }
-  return null;
 }
 
 function standardizePlace(model, placeText) {
@@ -496,111 +508,11 @@ function deleteExcluded(list) {
   if (!list) {
     return;
   }
-  for (let i = list.length() - 1; i >= 0; i--) {
+  for (let i = list.length - 1; i >= 0; i--) {
     if (list[i]["@exclude"] === "true") {
       list.splice(i, 1);
     }
   }
-}
-
-export function preparePageData(model, data, findAdd = false) {
-  // convert titles (excluded, matched); handle living
-  // IMPORTANT of order to handle editing the page properly, loading a single page MUST use
-  // the GEDCOM title including the GEDCOM key for ref.@title attrs
-  let clone = lodash.cloneDeep(data);
-
-  // set the page title
-  clone["@title"] = getPrefixedTitle(+data["@ns"], getGedcomPageTitle(model, data));
-  clone["@merged"] = data["@merged"];
-
-  // update pf titles (living, excluded), place titles, source titles
-  for (let node of clone["child_of_family"] || []) updateFamilyRef(model, node, findAdd);
-  for (let node of clone["spouse_of_family"] || []) updateFamilyRef(model, node, findAdd);
-  for (let node of clone["husband"] || []) updatePersonRef(model, node, findAdd);
-  for (let node of clone["wife"] || []) updatePersonRef(model, node, findAdd);
-  for (let node of clone["child"] || []) updatePersonRef(model, node, findAdd);
-  for (let node of clone["event_fact"] || []) updateEventFact(model, node);
-  for (let node of clone["source_citation"] || []) updateSourceCitation(model, node, findAdd);
-
-  if (findAdd) {
-    deleteExcluded(clone["child_of_family"]);
-    deleteExcluded(clone["spouse_of_family"]);
-    deleteExcluded(clone["husband"]);
-    deleteExcluded(clone["wife"]);
-    deleteExcluded(clone["child"]);
-    deleteExcluded(clone["source_citation"]);
-  }
-  return clone;
-}
-
-function addFamily(model, familyId, selfId, result) {
-  let family = model.familyMap[familyId];
-  if (family) {
-    result["family"].push(preparePageData(model, family, true));
-    for (let ref of family["husband"] || []) {
-      let member = model.personMap[ref["@id"]];
-      if (member && member["@id"] !== selfId) result["person"].push(preparePageData(model, member, true));
-    }
-    for (let ref of family["wife"] || []) {
-      let member = model.personMap[ref["@id"]];
-      if (member && member["@id"] !== selfId) result["person"].push(preparePageData(model, member, true));
-    }
-  }
-}
-
-export function prepareFindAddData(model, data) {
-  let result = { family: [], person: [] };
-  result["@gedcomId"] = model.gedcomId;
-  let clone = preparePageData(model, data, true);
-  if (+clone["@ns"] === NS_PERSON) {
-    result["person"].push(clone);
-    for (let node of clone["child_of_family"] || []) {
-      addFamily(model, node["@id"], clone["@id"], result);
-    }
-    for (let node of clone["spouse_of_family"] || []) {
-      addFamily(model, node["@id"], clone["@id"], result);
-    }
-  } else if (+clone["@ns"] === NS_FAMILY) {
-    result["family"].push(clone);
-    for (let node of clone["husband"] || []) {
-      let member = model.personMap[node["@id"]];
-      if (member) result["person"].push(preparePageData(model, member, true));
-    }
-    for (let node of clone["wife"] || []) {
-      let member = model.personMap[node["@id"]];
-      if (member) result["person"].push(preparePageData(model, member, true));
-    }
-    for (let node of clone["child"] || []) {
-      let member = model.personMap[node["@id"]];
-      if (member) result["person"].push(preparePageData(model, member, true));
-    }
-  }
-  return result;
-}
-
-export function getWarningPersonFamily(warn) {
-  return +warn["@ns"] === NS_PERSON ? warn["person"][0] : warn["family"][0];
-}
-
-export function getWarningLevelDesc(warn) {
-  let level = "";
-  if (warn["@warningLevel"] === 0) {
-    level = "alert";
-  } else if (warn["@warningLevel"] === 1) {
-    level = "warning";
-  } else if (warn["@warningLevel"] === 2) {
-    level = "error";
-  } else if (warn["@warningLevel"] === 3) {
-    level = "duplicate";
-  }
-  return level;
-}
-
-export function getEventFact(obj, typ) {
-  if (!obj || !obj["event_fact"]) {
-    return null;
-  }
-  return obj["event_fact"].find(ef => ef["@type"] === typ);
 }
 
 function capitalize(s) {
@@ -611,199 +523,64 @@ function capitalize(s) {
     .join(" ");
 }
 
-function dziemba_levenshtein(a, b) {
-  let tmp;
-  if (a.length === 0) {
-    return b.length;
-  }
-  if (b.length === 0) {
-    return a.length;
-  }
-  if (a.length > b.length) {
-    tmp = a;
-    a = b;
-    b = tmp;
-  }
+function cleanName(name) {
+  return name.replace(/[?~!@#$%^&*.()_+=/<>{}[\];:"\\,|]/g, " ").replace(/\s+/g, " ");
+}
 
-  let i,
-    j,
-    res,
-    alen = a.length,
-    blen = b.length,
-    row = Array(alen);
-  for (i = 0; i <= alen; i++) {
-    row[i] = i;
+function cleanWikiTitle(title) {
+  title = title
+    .replace(/[<[{]/g, "(")
+    .replace(/[>\]}]/g, ")")
+    .replace(/\|/g, "-")
+    .replace(/_/g, " ")
+    .replace(/#/g, "number ")
+    .replace(/\?/g, " question ")
+    .replace(/\+/g, " plus ")
+    .replace(/%([0-9a-fA-F][0-9a-fA-F])/g, "% $1")
+    .replace(/\s+/g, " ")
+    .replace(/\/\/+/g, "/");
+  title = title.trim();
+  while (title.length > 0 && (title.startsWith(".") || title.startsWith("/"))) {
+    title = title.substr(1);
   }
+  if (title.length > 150) {
+    title = title.substr(0, 149);
+  }
+  return capitalize(title);
+}
 
-  for (i = 1; i <= blen; i++) {
-    res = i;
-    for (j = 1; j <= alen; j++) {
-      tmp = row[j - 1];
-      row[j - 1] = res;
-      res = b[i - 1] === a[j - 1] ? tmp : Math.min(tmp + 1, Math.min(res + 1, row[j] + 1));
+function getPrebarTitle(fullTitle) {
+  let pos = fullTitle.indexOf("|");
+  return pos > 0 ? fullTitle.substr(0, pos) : fullTitle;
+}
+
+function getPersonTitle(person) {
+  let name = "";
+  if (person["@living"] === "true") {
+    name = "Living";
+  } else {
+    name = person["name"] && person["name"][0]["@given"] ? person["name"][0]["@given"].trim() : "";
+    let pos = name.indexOf(" ");
+    if (pos > 0) {
+      name = name.substr(0, pos);
     }
   }
-  return res;
+  name = cleanName(name + " " + (person["name"] && person["name"][0]["@surname"] ? person["name"][0]["@surname"] : ""));
+  return cleanWikiTitle(capitalize(name));
 }
 
-function similarity(a, b) {
-  let maxLen = Math.max(a.length, b.length);
-  return (maxLen - dziemba_levenshtein(a, b)) / maxLen;
+function getFamilyTitle(husband, wife) {
+  var title = "";
+  title += husband ? getPersonTitle(husband) : "Unknown";
+  title += " and ";
+  title += wife ? getPersonTitle(wife) : "Unknown";
+  return title;
 }
 
-//
-// support functions
-//
-
-export function itemUpdated(model, data) {
-  let ns = +data["@ns"];
-  if (data["@warningLevel"]) {
-    // model.warningsItemUpdated(data)
-  } else if (ns === NS_PERSON || ns === NS_FAMILY) {
-    if (ns === NS_PERSON) {
-      // model.peopleItemUpdated(data);
-    } else if (ns === NS_FAMILY) {
-      // model.familiesItemUpdated(data);
-      if (data["@exclude"] !== "true" && (data["@match"] || data["@matches"])) {
-        model.addUpdateMatch(data);
-      } else {
-        model.removeMatch(data);
-      }
-    }
-    if (data["@warning"] && data["@exclude"] !== "true") {
-      model.addUpdateWarnings(data);
-    } else {
-      model.removeWarnings(data);
-    }
-  } else if (ns === NS_PLACE) {
-    // model.placesItemUpdated(data);
-  } else if (ns === NS_MYSOURCE) {
-    // model.sourcesItemUpdated(data);
-  }
+function getFamilyFullName(family) {
+  return (
+    getFullName(family["husband"] ? family["husband"][0] : null) +
+    " and " +
+    getFullName(family["wife"] ? family["wife"][0] : null)
+  );
 }
-
-export function getTrueFalse(tf) {
-  tf = +tf;
-  if (tf > 0) {
-    return "true";
-  }
-  if (tf < 0) {
-    return "false";
-  }
-  return "";
-}
-
-export function getPositiveNegative(tf) {
-  if (tf === "true") {
-    return "1";
-  } else if (tf === "false") {
-    return "-1";
-  }
-  return "0";
-}
-
-//
-// update functions
-//
-
-// function saveIncludeExclude(exclude, updatedItems) {
-//   let saveKeys = [];
-//   for (let item of updatedItems) {
-//     itemUpdated(item);
-//     saveKeys.push(item["@id"]);
-//   }
-//   if (saveKeys.length > 0) {
-//     saveExclude(exclude, saveKeys);
-//   }
-// }
-//
-// export function updatePrimary(model, data) {
-//   model.primaryPerson = data;
-//   data["@exclude"] = "true"; // force inclusion of root"s ancestors by marking root excluded to start
-//   let includedItems = [];
-//   //ie.includeSelfAndAncestors(data, includedItems);
-//   includeItem(model, data, includedItems);
-//   updateRootDistances(model);
-//   executeServiceCall(wr.updatePrimaryPage(model.gedcomId, data.@id), makeRoot_result, wr.service_fault);
-//   saveIncludeExclude("false", includedItems);
-// }
-//
-// export function setExclude(model, data, exclude) {
-//   let updatedItems = [];
-//   if (exclude === "true") {
-//     excludeItem(model, data, updatedItems);
-//   }
-//   else {
-//     includeItem(model, data, updatedItems);
-//   }
-//   saveIncludeExclude(exclude, updatedItems);
-// }
-//
-// export function setLiving(model, data, living) {
-//   data["@living"] = living;
-//   itemUpdated(data);
-//   saveLiving(data["@living"], data["@id"]);
-//   if (+data["@ns"] === NS_PERSON) {
-//     for (let ref of data["spouse_of_family"]) {
-//       let family = model.familyMap[ref["@id"]];
-//       if (family) {
-//         let familyIsLiving = "false";
-//         for (let spouseRef of family["husband"]) {
-//           let spouse = model.personMap[spouseRef["@id"]];
-//           if (spouse && spouse["@living"] === "true") familyIsLiving = "true";
-//         }
-//         for (let spouseRef of family["wife"]) {
-//           let spouse = model.personMap[spouseRef["@id"]];
-//           if (spouse && spouse["@living"] === "true") familyIsLiving = "true";
-//         }
-//         if (family["@living"] !== familyIsLiving) {
-//           setLiving(family, familyIsLiving);
-//         }
-//       }
-//     }
-//   }
-// }
-//
-export function setRead(model, data, read) {
-  data["@read"] = read;
-  itemUpdated(model, data);
-}
-
-export function setWarningRead(model, data, read) {
-  data["@warningRead"] = read;
-  itemUpdated(model, data);
-}
-
-export function setMatchRead(model, data, read) {
-  data["@matchRead"] = read;
-  itemUpdated(model, data);
-}
-
-export function setUpdateRead(model, data, read) {
-  data["@updateRead"] = read;
-  itemUpdated(model, data);
-}
-
-//
-// export function setPotentialMatch(data, title, save = true) {
-//   let datas = [];
-//   datas.push(data);
-//   let titles = [];
-//   titles.push(title);
-//   setPotentialMatches(datas, titles, save);
-// }
-//
-// export function setPotentialMatches(datas, titles, save = true) {
-//   let ids = [];
-//   for (let i = 0; i < datas.length; i++) {
-//     datas[i]["@matches"] = (titles[i].length > 0 ? titles[i] : datas[i]["@gedcomMatches"]);
-//     setMatchHelperFields(datas[i]);
-//     itemUpdated(datas[i]);
-//     if (save) {
-//       ids[i] = datas[i]["@id"];
-//     }
-//   }
-//   if (save) {
-//     savePotentialMatches(titles, ids);
-//   }
-// }
