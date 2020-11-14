@@ -36,11 +36,13 @@ import {
   updateGedcomFlag,
   readGedcomPageData,
   saveMatchesToServer,
-  savePotentialMatches
+  savePotentialMatches,
+  updateGedcomStatus
 } from "@/services/Server";
 import { encodeWikiURIComponent, objectToQuery, similarity } from "@/utils/StringUtils";
 import { loadContent, loadContentNewWindow } from "@/services/ExternalInterface";
 import { excludeItem, includeItem } from "@/utils/IncludeExclude";
+import { xmlToJson } from "@/utils/XMLUtils";
 
 const RESULT_NOMATCH = 0;
 const RESULT_MATCH = 1;
@@ -137,7 +139,8 @@ export function loadPageTitle(pageTitle, parms = null, newWindow = false) {
 
 export async function pageUpdated(model, id) {
   let result = await readGedcomPageData(model.gedcomId, id);
-  if (result && !result["@status"]) {
+  result = xmlToJson(result);
+  if (result && result["@status"] === "0") {
     let dataComponent = getDataComponent(model, result["@key"]);
     if (dataComponent && result["#text"]) {
       // get old mysource refs
@@ -165,6 +168,16 @@ export async function pageUpdated(model, id) {
     console.log("pageUpdated error", result);
     throw result;
   }
+}
+
+export async function updateStatus(model, status, warning) {
+  let result = await updateGedcomStatus(model.gedcomId, status, warning);
+  result = xmlToJson(result);
+  if (!result || result["@status"] !== "0") {
+    console.log("gedcomUpdateStatus error", result);
+    throw result;
+  }
+  model.status = status;
 }
 
 export async function matchFound(model, title) {
@@ -336,7 +349,8 @@ async function setMatches(model, datas, titles, save = true, merged = false, han
 
 async function saveFlag(model, attr, value, keys) {
   let result = await updateGedcomFlag(model.gedcomId, attr, value, keys);
-  if (!result || result["@status"]) {
+  result = xmlToJson(result);
+  if (!result || result["@status"] !== "0") {
     console.log("saveFlag error", result);
     throw result;
   }
@@ -381,14 +395,15 @@ async function saveMerged(model, tf, ids) {
 
 // gets potential matches back and saves them
 async function saveMatches(model, merged, prefixedTitles, mergedIds, keys, handleRelatedMatches) {
-  let matchedTitles = [];
-  let matchedFamilies = [];
   let result = await saveMatchesToServer(model.gedcomId, prefixedTitles, mergedIds, keys);
-  if (!result || result["@status"]) {
+  result = xmlToJson(result);
+  if (!result || result["@status"] !== "0") {
     console.log("saveMatches error", result);
     throw result;
   } else {
     // process match results
+    let matchedTitles = [];
+    let matchedFamilies = [];
     for (let match of result["match"] || []) {
       let id = match["@id"];
       let dataComponent = getDataComponent(model, id);
@@ -421,7 +436,11 @@ async function setPotentialMatches(model, datas, titles, save = true) {
     }
   }
   if (save) {
-    await savePotentialMatches(model.gedcomId, titles, ids);
+    let result = await savePotentialMatches(model.gedcomId, titles, ids);
+    if (!result || result["@status"] !== "0") {
+      console.log("setPotentialMatches error", result);
+      throw result;
+    }
   }
 }
 
@@ -434,7 +453,8 @@ async function matchFamily(model, familyMatches, family, title) {
   matchData["@match"] = title;
   matchData["@id"] = family["@id"];
   let result = await saveMatchedFamily(matchData);
-  if (!result || result["@status"]) {
+  result = xmlToJson(result);
+  if (!result || result["@status"] !== "0") {
     console.log("matchFamily error", result);
     throw result;
   }
@@ -534,7 +554,8 @@ async function findAddItem(model, data, component) {
   if (+data["@ns"] === NS_FAMILY || +data["@ns"] === NS_PERSON) {
     let findAddData = prepareFindAddData(model, data);
     let result = await sendPageData(findAddData);
-    if (result && !result["@status"]) {
+    result = xmlToJson(result);
+    if (result && result["@status"] === "0") {
       let parms = {};
       parms.ns = NAMESPACES[+data["@ns"]];
       parms.match = "on";
@@ -576,7 +597,8 @@ async function mergeItem(model, data) {
   sentData = data;
   let findAddData = prepareFindAddData(model, data);
   let result = await sendPageData(findAddData);
-  if (result && !result["@status"]) {
+  result = xmlToJson(result);
+  if (result && result["@status"] === "0") {
     let parms = {};
     parms.gedcom = "true";
     parms.formAction = "Merge";
@@ -632,7 +654,8 @@ async function compareItem(model, data) {
   sentData = data;
   let compareData = prepareFindAddData(model, data);
   let result = await sendPageData(compareData);
-  if (result && !result["@status"]) {
+  result = xmlToJson(result);
+  if (result && result["@status"] === "0") {
     let parms = {};
     parms.ns = NAMESPACES[+data["@ns"]];
     parms.compare = getGedcomPageTitle(model, data) + "|" + data["@matches"];
@@ -669,7 +692,8 @@ async function loadPageData(model, data) {
   sentData = data;
   // send data to WeRelate
   let result = await sendPageData(clone);
-  if (result && !result["@status"]) {
+  result = xmlToJson(result);
+  if (result && result["@status"] === "0") {
     let parms = {};
     parms.gedcomtab = getDefaultComponent(+data["@ns"]);
     parms.gedcomkey = data["@id"];

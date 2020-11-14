@@ -6,8 +6,10 @@ export function parseXML(data) {
 }
 
 export function xmlToJson(xml) {
+  if (!xml) {
+    return null;
+  }
   let obj = {};
-
   if (xml.nodeType === 1) {
     // element
     obj["#tag"] = xml.nodeName;

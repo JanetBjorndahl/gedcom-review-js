@@ -11,11 +11,11 @@ export function readGedcomData(gedcomId) {
   return sendAjaxService("wfReadGedcomData", { gedcom_id: gedcomId }).then(res => parseXML(res.data));
 }
 
-export function updatePrimaryPage(gedcomId, primaryId) {
-  return sendAjaxService("wfUpdateGedcomPrimary", { gedcom_id: gedcomId, primary: primaryId }).then(res =>
-    parseXML(res.data)
-  );
-}
+// export function updatePrimaryPage(gedcomId, primaryId) {
+//   return sendAjaxService("wfUpdateGedcomPrimary", { gedcom_id: gedcomId, primary: primaryId }).then(res =>
+//     parseXML(res.data)
+//   );
+// }
 
 export function sendPageData(data) {
   let xml = toXMLString(data);

@@ -1,6 +1,6 @@
 import { loadGedcom, loadGedcomData, modelLoaded } from "@/utils/ModelLoaderUtils";
-import { matchesFound, matchFound, pageUpdated, setExclude, unmatch } from "@/utils/WeRelateUtils";
-import { readGedcom, readGedcomData, updateGedcomStatus } from "@/services/Server";
+import { matchesFound, matchFound, pageUpdated, setExclude, updateStatus, unmatch } from "@/utils/WeRelateUtils";
+import { readGedcom, readGedcomData } from "@/services/Server";
 import { cloneShallow } from "@/utils/ModelUtils";
 
 export const state = {
@@ -66,18 +66,15 @@ export const actions = {
     }
   },
   async gedcomUpdateStatus({ commit, dispatch, state }, { status, warning }) {
-    let model = cloneShallow(state.model);
-    let xml = await updateGedcomStatus(model.gedcomId, status, warning);
-    console.log("gedcomUpdateStatus", xml);
-    if (!xml || (xml.getAttribute("gedcomStatus") && xml.getAttribute("gedcomStatus") !== "0")) {
-      let err = xml ? xml.getAttribute("status") : "network error";
-      console.log("gedcomUpdateStatus error", err);
-      dispatch("notificationsAdd", { message: "There was a problem updating the gedcom status: " + err });
+    try {
+      let model = cloneShallow(state.model);
+      await updateStatus(model, status, warning);
+      commit("GEDCOM_UPDATE_MODEL", model);
       return model;
+    } catch (error) {
+      console.log("gedcomUpdateStatus error", error);
+      dispatch("notificationsAdd", error);
     }
-    model.status = status;
-    commit("GEDCOM_UPDATE_MODEL", model);
-    return model;
   },
   async gedcomPageUpdated({ commit, dispatch, state }, { id }) {
     try {
