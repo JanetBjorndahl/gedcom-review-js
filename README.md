@@ -1,4 +1,9 @@
-# client
+# GEDCOM review client
+
+## Install Vue
+```
+npm install vue
+```
 
 ## Project setup
 ```
