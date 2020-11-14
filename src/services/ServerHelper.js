@@ -1,6 +1,5 @@
 import axios from "axios";
 import axiosRetry from "axios-retry";
-import { parseXML } from "@/utils/XMLUtils";
 
 const axiosClient = axios.create({
   baseURL: process.env.VUE_APP_API_BASE_URL,
@@ -12,42 +11,27 @@ const axiosClient = axios.create({
 });
 axiosRetry(axiosClient, { retries: 3 }); // retry non-POST requests on network or 5XX errors
 
-export function post(url, data, config) {
-  return request({
-    method: "POST",
-    url: url,
-    data: data,
-    ...config
+export function sendAjaxService(functionName, parms, method = "GET") {
+  let sendParms = { action: "ajax", rs: functionName };
+  let rsargs = "";
+  if (typeof parms === "string") {
+    rsargs = parms;
+  } else if (parms) {
+    for (let key of Object.keys(parms)) {
+      if (rsargs.length > 0) rsargs += "|";
+      rsargs += key + "=" + parms[key];
+    }
+  }
+  if (rsargs.length > 0) {
+    sendParms["rsargs"] = rsargs;
+  }
+  return axiosClient.request({
+    method: method,
+    url: getBaseURL(),
+    params: sendParms
   });
 }
 
-export function put(url, data, config) {
-  return request({
-    method: "PUT",
-    url: url,
-    data: data,
-    ...config
-  });
-}
-
-export function get(url, config) {
-  return request({
-    method: "GET",
-    url: url,
-    ...config
-  }).then(res => {
-    return parseXML(res.data);
-  });
-}
-
-export function del(url, config) {
-  return request({
-    method: "DELETE",
-    url: url,
-    ...config
-  });
-}
-
-export function request(config) {
-  return axiosClient.request(config);
+function getBaseURL() {
+  return "/w/index.php";
 }

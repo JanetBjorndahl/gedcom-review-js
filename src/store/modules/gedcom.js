@@ -68,7 +68,8 @@ export const actions = {
   async gedcomUpdateStatus({ commit, dispatch, state }, { status, warning }) {
     let model = cloneShallow(state.model);
     let xml = await updateGedcomStatus(model.gedcomId, status, warning);
-    if (!xml || (xml.getAttribute("status") && xml.getAttribute("status") !== "0")) {
+    console.log("gedcomUpdateStatus", xml);
+    if (!xml || (xml.getAttribute("gedcomStatus") && xml.getAttribute("gedcomStatus") !== "0")) {
       let err = xml ? xml.getAttribute("status") : "network error";
       console.log("gedcomUpdateStatus error", err);
       dispatch("notificationsAdd", { message: "There was a problem updating the gedcom status: " + err });

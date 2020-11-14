@@ -205,13 +205,12 @@ export default {
         this.$store.dispatch("notificationsAdd", err);
       }
     },
-    removeGedcom() {
+    async removeGedcom() {
       try {
-        this.$store.dispatch("gedcomUpdateStatus", { status: STATUS_DELETE });
-        // TODO
-        // loadParentContent("https://" + WR_SERVER);
+        await this.$store.dispatch("gedcomUpdateStatus", { status: STATUS_DELETE });
+        loadParentContent("https://" + WR_SERVER);
       } catch (err) {
-        this.$store.dispatch("notificationsAdd", err);
+        await this.$store.dispatch("notificationsAdd", err);
       }
     }
   }
