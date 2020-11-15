@@ -10,10 +10,7 @@ module.exports = {
         target: "https://www.werelate.org",
         changeOrigin: true,
         onProxyReq: function(proxyReq) {
-          proxyReq.setHeader(
-            "Cookie",
-            "wikidb_session=fkjmq0kopb5gbacclbnbvuhm04; wikidbToken=5bb4994bf6375a827752290cf6b2bbca; wikidbUserID=2; wikidbUserName=Dallan"
-          );
+          proxyReq.setHeader("Cookie", "wikidb_session=???; wikidbUserID=???; wikidbUserName=???");
         }
       }
     }
