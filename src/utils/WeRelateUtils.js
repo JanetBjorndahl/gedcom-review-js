@@ -366,7 +366,7 @@ async function saveLiving(model, tf, ids) {
 
 async function setLiving(model, data, living) {
   data["@living"] = living;
-  itemUpdated(data);
+  itemUpdated(model, data);
   await saveLiving(model, data["@living"], data["@id"]);
   if (+data["@ns"] === NS_PERSON) {
     for (let ref of data["spouse_of_family"]) {
@@ -430,13 +430,14 @@ async function setPotentialMatches(model, datas, titles, save = true) {
   for (let i = 0; i < datas.length; i++) {
     datas[i]["@matches"] = titles[i].length > 0 ? titles[i] : datas[i]["@gedcomMatches"];
     setMatchHelperFields(datas[i]);
-    itemUpdated(datas[i]);
+    itemUpdated(model, datas[i]);
     if (save) {
       ids[i] = datas[i]["@id"];
     }
   }
   if (save) {
     let result = await savePotentialMatches(model.gedcomId, titles, ids);
+    result = xmlToJson(result);
     if (!result || result["@status"] !== "0") {
       console.log("setPotentialMatches error", result);
       throw result;

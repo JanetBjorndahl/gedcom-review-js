@@ -1,6 +1,7 @@
 import lodash from "lodash";
 import { getDateSortKey } from "@/utils/DateUtils";
 import { parseXML, xmlToJson } from "@/utils/XMLUtils";
+import { capitalize } from "@/utils/StringUtils";
 
 export const NS_SOURCE = 104;
 export const NS_PLACE = 106;
@@ -339,7 +340,7 @@ export function getFullName(name) {
     return "";
   }
   return (
-    name["@surname"] +
+    (name["@surname"] || "Unknown") +
     "," +
     (name["@title_prefix"] ? " " + name["@title_prefix"] : "") +
     (name["@given"] ? " " + name["@given"] : "") +
@@ -515,14 +516,6 @@ function deleteExcluded(list) {
   }
 }
 
-function capitalize(s) {
-  return s
-    .toLowerCase()
-    .split(" ")
-    .map(word => word.charAt(0).toUpperCase() + word.substr(1))
-    .join(" ");
-}
-
 function cleanName(name) {
   return name.replace(/[?~!@#$%^&*.()_+=/<>{}[\];:"\\,|]/g, " ").replace(/\s+/g, " ");
 }
@@ -566,7 +559,7 @@ function getPersonTitle(person) {
     }
   }
   name = cleanName(name + " " + (person["name"] && person["name"][0]["@surname"] ? person["name"][0]["@surname"] : ""));
-  return cleanWikiTitle(capitalize(name));
+  return cleanWikiTitle(capitalize(name.toLowerCase(), true));
 }
 
 function getFamilyTitle(husband, wife) {

@@ -99,14 +99,21 @@ export default class Model {
     for (let i = 0; i < warns.length; i++) {
       let warn = warns[i];
       let x = {};
-      x["@id"] = pf["@id"] + "|" + i.toString();
-      let level = +warn.substr(0, 1);
-      if (Number.isNaN(level)) {
-        x["@warningLevel"] = 1;
-        x["@warning"] = warn;
+      if (pf["@id"].includes("|")) {
+        // pf is a warning
+        x["@id"] = pf["@id"];
+        x["@warning"] = pf["@warning"];
+        x["@warningLevel"] = pf["@warningLevel"];
       } else {
-        x["@warningLevel"] = level;
-        x["@warning"] = warn.substr(1);
+        x["@id"] = pf["@id"] + "|" + i.toString();
+        let level = +warn.substr(0, 1);
+        if (Number.isNaN(level)) {
+          x["@warningLevel"] = 1;
+          x["@warning"] = warn;
+        } else {
+          x["@warningLevel"] = level;
+          x["@warning"] = warn.substr(1);
+        }
       }
       x["@stdName"] = pf["@stdName"];
       x["@ns"] = pf["@ns"];

@@ -44,7 +44,8 @@ export function updateGedcomFlag(gedcomId, attr, value, keys) {
 }
 
 export function saveMatchedFamily(data) {
-  return sendAjaxService("wfMatchFamily", toXMLString(data), "POST").then(res => parseXML(res.data));
+  let xml = toXMLString(data);
+  return sendAjaxService("wfMatchFamily", xml, "POST").then(res => parseXML(res.data));
 }
 
 export function saveMatchesToServer(gedcomId, prefixedTitles, merged, keys) {

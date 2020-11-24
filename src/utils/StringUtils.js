@@ -10,8 +10,8 @@ export function escapeXML(s) {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/\\'/g, "&apos;")
-    .replace(/\\"/g, "&quot;");
+    .replace(/'/g, "&apos;")
+    .replace(/"/g, "&quot;");
 }
 
 // escapes a string so we can embed it in HTML
@@ -20,7 +20,7 @@ export function htmlspecialchars(s) {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/\\"/g, "&quot;");
+    .replace(/"/g, "&quot;");
 }
 
 const slashRegExp = /%2F/g;
@@ -37,6 +37,17 @@ export function encodeWikiURIComponent(url) {
     .replace(slashRegExp, "/")
     .replace(spaceRegExp, "_")
     .replace(hashRegExp, "#");
+}
+
+export function capitalize(s, all = false) {
+  if (all) {
+    return s
+      .split(" ")
+      .map(word => word.charAt(0).toUpperCase() + word.substr(1))
+      .join(" ");
+  } else {
+    return s.charAt(0).toUpperCase() + s.substr(1);
+  }
 }
 
 export function objectToQuery(obj) {
