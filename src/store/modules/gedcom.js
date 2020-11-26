@@ -1,7 +1,7 @@
 import { loadGedcom, loadGedcomData, modelLoaded } from "@/utils/ModelLoaderUtils";
 import { matchesFound, matchFound, pageUpdated, setExclude, updateStatus, unmatch } from "@/utils/WeRelateUtils";
 import { readGedcom, readGedcomData } from "@/services/Server";
-import { cloneShallow } from "@/utils/ModelUtils";
+import { WARNINGS, PEOPLE, FAMILIES, PLACES, SOURCES, MATCHES, cloneShallow } from "@/utils/ModelUtils";
 
 export const state = {
   model: {}
@@ -115,5 +115,28 @@ export const actions = {
       console.log("gedcomUnmatch error", error);
       dispatch("notificationsAdd", error);
     }
+  },
+  async gedcomUpdateData({ commit }, { component, data }) {
+    let model = cloneShallow(state.model);
+    if (component === WARNINGS) {
+      model.warnings[data["@id"]] = data;
+    }
+    if (component === PEOPLE) {
+      model.people[data["@id"]] = data;
+    }
+    if (component === FAMILIES) {
+      model.families[data["@id"]] = data;
+    }
+    if (component === PLACES) {
+      model.places[data["@id"]] = data;
+    }
+    if (component === SOURCES) {
+      model.sources[data["@id"]] = data;
+    }
+    if (component === MATCHES) {
+      model.matches[data["@id"]] = data;
+    }
+    console.log("gedcomUpdateModel", model);
+    commit("GEDCOM_UPDATE_MODEL", model);
   }
 };

@@ -23,9 +23,12 @@ Next
 npm run serve
 ```
 
-### Compiles and minifies for production
+### Deploy
 ```
 npm run build
+scp -r dist/* admin@<IP>:gedcom-review-js
+ssh admin@<IP>
+sudo cp -r ~/gedcom-review-js/* /var/www/html/gedcom-review/
 ```
 
 ### Lints and fixes files

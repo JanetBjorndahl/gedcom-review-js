@@ -48,7 +48,7 @@ export const actions = {
       }
       for (let key of Object.keys(prefs.noShowTips)) {
         if (prefs.noShowTips[key] < cutoffTime) {
-          delete prefs.readFlags[key];
+          delete prefs.nowShowTips[key];
         }
       }
       LocalStorage.setItem("gedcom-review", JSON.stringify(prefs));
@@ -78,6 +78,7 @@ export const actions = {
       if (itemChanged) {
         let key = getItemKey(model.gedcomId, component, data["@id"]);
         prefs.readFlags[key] = Math.round(new Date().getTime() / 1000);
+        dispatch("gedcomUpdateData", { component, data });
       }
       // console.log("prefsMarkRead", prefs);
       LocalStorage.setItem("gedcom-review", JSON.stringify(prefs));
