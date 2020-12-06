@@ -1,7 +1,8 @@
 import { loadGedcom, loadGedcomData, modelLoaded } from "@/utils/ModelLoaderUtils";
 import { matchesFound, matchFound, pageUpdated, setExclude, updateStatus, unmatch } from "@/utils/WeRelateUtils";
-import { readGedcom, readGedcomData } from "@/services/Server";
+import { readGedcom, readGedcomData, WR_SERVER } from "@/services/Server";
 import { WARNINGS, PEOPLE, FAMILIES, PLACES, SOURCES, MATCHES, cloneShallow } from "@/utils/ModelUtils";
+import { loadParentContent } from "@/services/ExternalInterface";
 
 export const state = {
   model: {}
@@ -21,7 +22,11 @@ export const actions = {
       // console.log("gedcomRead success", xml);
       if (!xml || (xml.getAttribute("status") && xml.getAttribute("status") !== "0")) {
         let err = xml ? xml.getAttribute("status") : "network error";
-        console.log("gedcomRead error", err);
+        console.log("gedcomRead status error", err);
+        if (err === "-6") {
+          alert("Your GEDCOM is no longer available for review");
+          loadParentContent("https://" + WR_SERVER);
+        }
         dispatch("notificationsAdd", { message: "There was a problem reading gedcom: " + err });
         return null;
       }

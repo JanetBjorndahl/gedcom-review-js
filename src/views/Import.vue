@@ -31,6 +31,8 @@
 import { loadPageTitle } from "@/utils/WeRelateUtils";
 import { HELPPAGES, IMPORT, STATUS_PHASE2, STATUS_PHASE3 } from "@/utils/ModelUtils";
 import { mapState } from "vuex";
+import { loadParentContent } from "@/services/ExternalInterface";
+import { WR_SERVER } from "@/services/Server";
 
 export default {
   name: "Import",
@@ -46,7 +48,10 @@ export default {
     readyToImport() {
       try {
         let warning = getImportWarning(this.gedcom.model);
-        this.$store.dispatch("gedcomUpdateStatus", { status: STATUS_PHASE3, warning: warning });
+        this.$store.dispatch("gedcomUpdateStatus", { status: STATUS_PHASE3, warning: warning }).then(() => {
+          alert("Your GEDCOM will be reviewed by an administrator and imported.");
+          loadParentContent("https://" + WR_SERVER);
+        });
       } catch (err) {
         this.$store.dispatch("notificationsAdd", err);
       }
