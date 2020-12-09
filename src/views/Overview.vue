@@ -48,7 +48,7 @@
         </v-dialog>
       </v-col>
       <v-col>
-        In case you change your mind about uplading this GEDCOM, you can remove it.
+        In case you change your mind about uploading this GEDCOM, you can remove it.
       </v-col>
     </v-row>
     <v-row>
