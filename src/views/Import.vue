@@ -50,7 +50,7 @@ export default {
         let warning = getImportWarning(this.gedcom.model);
         this.$store.dispatch("gedcomUpdateStatus", { status: STATUS_PHASE3, warning: warning }).then(() => {
           alert("Your GEDCOM will be reviewed by an administrator and imported.");
-          loadParentContent("https://" + WR_SERVER);
+          loadParentContent(WR_SERVER);
         });
       } catch (err) {
         this.$store.dispatch("notificationsAdd", err);

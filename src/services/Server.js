@@ -1,7 +1,7 @@
 import { sendAjaxService } from "./ServerHelper";
 import { parseXML, toXMLString } from "@/utils/XMLUtils";
 
-export const WR_SERVER = "www.werelate.org";
+export const WR_SERVER = "https://www.werelate.org";
 
 export function readGedcom(gedcomId) {
   return sendAjaxService("wfReadGedcom", { gedcom_id: gedcomId }).then(res => parseXML(res.data));

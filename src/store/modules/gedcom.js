@@ -1,4 +1,4 @@
-import { loadGedcom, loadGedcomData, modelLoaded } from "@/utils/ModelLoaderUtils";
+import { loadGedcom, loadGedcomData, modelLoaded, updateCounts } from "@/utils/ModelLoaderUtils";
 import { matchesFound, matchFound, pageUpdated, setExclude, updateStatus, unmatch } from "@/utils/WeRelateUtils";
 import { readGedcom, readGedcomData, WR_SERVER } from "@/services/Server";
 import { WARNINGS, PEOPLE, FAMILIES, PLACES, SOURCES, MATCHES, cloneShallow } from "@/utils/ModelUtils";
@@ -25,7 +25,15 @@ export const actions = {
         console.log("gedcomRead status error", err);
         if (err === "-6") {
           alert("Your GEDCOM is no longer available for review");
-          loadParentContent("https://" + WR_SERVER);
+          loadParentContent(WR_SERVER);
+        }
+        if (err === "-2") {
+          alert("Please sign in, then re-visit this page");
+          loadParentContent(WR_SERVER);
+        }
+        if (err === "-3") {
+          alert("You are not authorized to view this GEDCOM");
+          loadParentContent(WR_SERVER);
         }
         dispatch("notificationsAdd", { message: "There was a problem reading gedcom: " + err });
         return null;
@@ -63,6 +71,7 @@ export const actions = {
     try {
       let model = cloneShallow(state.model);
       await setExclude(model, data, exclude);
+      updateCounts(model);
       commit("GEDCOM_UPDATE_MODEL", model);
       return model;
     } catch (error) {
@@ -74,6 +83,7 @@ export const actions = {
     try {
       let model = cloneShallow(state.model);
       await updateStatus(model, status, warning);
+      updateCounts(model);
       commit("GEDCOM_UPDATE_MODEL", model);
       return model;
     } catch (error) {
@@ -85,6 +95,7 @@ export const actions = {
     try {
       let model = cloneShallow(state.model);
       await pageUpdated(model, id);
+      updateCounts(model);
       commit("GEDCOM_UPDATE_MODEL", model);
     } catch (error) {
       console.log("gedcomPageUpdated error", error);
@@ -95,6 +106,7 @@ export const actions = {
     try {
       let model = cloneShallow(state.model);
       await matchFound(model, title);
+      updateCounts(model);
       commit("GEDCOM_UPDATE_MODEL", model);
     } catch (error) {
       console.log("gedcomMatchFound error", error);
@@ -105,6 +117,7 @@ export const actions = {
     try {
       let model = cloneShallow(state.model);
       await matchesFound(model, matchesString, merged, all);
+      updateCounts(model);
       commit("GEDCOM_UPDATE_MODEL", model);
     } catch (error) {
       console.log("gedcomMatchesFound error", error);
@@ -115,6 +128,7 @@ export const actions = {
     try {
       let model = cloneShallow(state.model);
       await unmatch(model, data);
+      updateCounts(model);
       commit("GEDCOM_UPDATE_MODEL", model);
     } catch (error) {
       console.log("gedcomUnmatch error", error);
@@ -142,6 +156,7 @@ export const actions = {
       model.matches[data["@id"]] = data;
     }
     console.log("gedcomUpdateModel", model);
+    updateCounts(model);
     commit("GEDCOM_UPDATE_MODEL", model);
   }
 };

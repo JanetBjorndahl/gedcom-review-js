@@ -200,7 +200,7 @@ export default {
   methods: {
     returnToWeRelate() {
       try {
-        loadParentContent("https://" + WR_SERVER);
+        loadParentContent(WR_SERVER);
       } catch (err) {
         this.$store.dispatch("notificationsAdd", err);
       }
@@ -208,7 +208,7 @@ export default {
     async removeGedcom() {
       try {
         await this.$store.dispatch("gedcomUpdateStatus", { status: STATUS_DELETE });
-        loadParentContent("https://" + WR_SERVER);
+        loadParentContent(WR_SERVER);
       } catch (err) {
         await this.$store.dispatch("notificationsAdd", err);
       }

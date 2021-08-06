@@ -155,7 +155,7 @@ function createModelObject(tag, elm) {
   return result;
 }
 
-function updateCounts(model) {
+export function updateCounts(model) {
   let peopleToImport = 0;
   let peopleExcluded = 0;
   let peopleMatched = 0;

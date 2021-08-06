@@ -24,6 +24,11 @@ npm run serve
 ```
 
 ### Deploy
+
+Note: If you are deploying to the sandbox
+* set WR_SERVER="http://sandbox.werelate.org" in Server.js
+* set VUE_APP_API_BASE_URL=http://sandbox.werelate.org in .env.production
+
 ```
 npm run build
 scp -r dist/* admin@<IP>:gedcom-review-js
