@@ -25,6 +25,8 @@ npm run serve
 
 ### Deploy
 
+Known to work with node v14.21.1
+
 Note: If you are deploying to the sandbox
 * set WR_SERVER="http://sandbox.werelate.org" in Server.js
 * set VUE_APP_API_BASE_URL=http://sandbox.werelate.org in .env.production
